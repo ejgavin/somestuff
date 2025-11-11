@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MFMTWB2DBE"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-MFMTWB2DBE');
+    </script>
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Live TV Portal</title>
+    <script src="https://unpkg.com/artplayer/dist/artplayer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/artplayer-plugin-hls-control@latest/dist/artplayer-plugin-hls-control.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Header */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            padding: 1.5rem 2rem;
+            backdrop-filter: blur(20px) saturate(180%);
+            background: rgba(15, 23, 42, 0.8);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+            letter-spacing: -0.02em;
+        }
+
+        .search-container {
+            position: relative;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        #searchbar {
+            width: 100%;
+            padding: 1rem 1.5rem 1rem 3.5rem;
+            border-radius: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        #searchbar:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        #searchbar::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1.2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.5);
+            pointer-events: none;
+        }
+
+        /* Content Grid */
+        #channelGrid {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .channel-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .channel-card.animate-in {
+            animation: fadeInUp 0.5s ease forwards;
+            opacity: 0;
+        }
+
+        .channel-card.hidden {
+            display: none;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .channel-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            border-color: #3b82f6;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(59, 130, 246, 0.5);
+        }
+
+        .logo-container {
+            position: relative;
+            padding-top: 100%;
+            overflow: hidden;
+            background: linear-gradient(135deg, #1e293b, #334155);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-container img {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 80%;
+            max-height: 80%;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+        }
+
+        .channel-card:hover .logo-container img {
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        .card-info {
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 0.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.3;
+        }
+
+        .schedule-info {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.4;
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(59, 130, 246, 0.2);
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Player Modal */
+        #playerModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            z-index: 9999;
+            flex-direction: column;
+        }
+
+        #playerHeader {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95));
+            backdrop-filter: blur(20px);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #playerHeader span {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #3b82f6;
+        }
+
+        #playerHeader button {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            color: #fff;
+            padding: 0.5rem 1.5rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 0.5rem;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        #playerHeader button:hover {
+            background: rgba(59, 130, 246, 0.4);
+            transform: scale(1.05);
+        }
+
+        #player {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+        }
+
+        #scheduleSidebar {
+            display: none;
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 350px;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(51, 65, 85, 0.98));
+            backdrop-filter: blur(20px);
+            color: #fff;
+            overflow: auto;
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+            padding: 1.5rem;
+            z-index: 10000;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #scheduleCloseBtn {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            float: right;
+            padding: 0.25rem 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        #scheduleCloseBtn:hover {
+            background: rgba(59, 130, 246, 0.4);
+        }
+
+        #scheduleContent h3 {
+            color: #3b82f6;
+            margin-bottom: 1rem;
+            clear: both;
+        }
+
+        .schedule-item {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .schedule-item strong {
+            color: #fff;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .schedule-item small {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Error Popup */
+        #errorPopup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95));
+            backdrop-filter: blur(20px);
+            padding: 2rem 2.5rem;
+            border-radius: 20px;
+            border: 2px solid rgba(59, 130, 246, 0.8);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            z-index: 10001;
+            text-align: center;
+            animation: popIn 0.3s ease;
+        }
+
+        @keyframes popIn {
+            from {
+                transform: translate(-50%, -50%) scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+        }
+
+        #errorPopup h3 {
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+            color: #fff;
+        }
+
+        #errorPopup p {
+            margin-bottom: 1.5rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        #errorPopup button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            color: #fff;
+            padding: 0.75rem 2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        #errorPopup button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        /* Info Popup */
+        #infoPopup {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            max-width: 400px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95));
+            color: #fff;
+            padding: 1.5rem 2rem;
+            border-radius: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            z-index: 10002;
+            font-size: 0.95rem;
+            backdrop-filter: blur(15px);
+            animation: fadeInNotice 0.6s ease forwards;
+        }
+
+        #infoPopup h3 {
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+            color: #fff;
+        }
+
+        #infoPopup p {
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.4;
+        }
+
+        @keyframes fadeInNotice {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(59, 130, 246, 0.7);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            #channelGrid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            #scheduleSidebar {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="infoPopup">
+        <h3>Important Notice</h3>
+        <p>Obviously, right now a lot of the streams don’t work but unfortunately I can’t control that. When a fix comes out, I’ll make sure to add it. For events like March Madness and the World Cup, I’ll make sure those streams always work.</p>
+    </div>
+    <header>
+        <div class="header-content">
+            <h1>Live TV Portal</h1>
+            <div class="search-container">
+                <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input id="searchbar" type="text" placeholder="Search for live channels..." autofocus />
+            </div>
+        </div>
+    </header>
+
+    <div id="channelGrid">
+        <div class="loading">
+            <div class="loading-spinner"></div>
+            <p>Loading channels...</p>
+        </div>
+    </div>
+
+    <!-- Player Modal -->
+    <div id="playerModal">
+        <div id="playerHeader">
+            <span id="playerTitle">Now Playing</span>
+            <div>
+                <button onclick="toggleSchedule()">Schedule</button>
+                <button onclick="closePlayer()">Close</button>
+            </div>
+        </div>
+        <div id="player"></div>
+        <div id="scheduleSidebar">
+            <button id="scheduleCloseBtn">✕</button>
+            <div id="scheduleContent"></div>
+        </div>
+    </div>
+
+    <!-- Error Popup -->
+    <div id="errorPopup">
+        <h3>Channel Failed</h3>
+        <p>This channel is currently unavailable and has been removed from the list.</p>
+        <button onclick="closeErrorPopup()">OK</button>
+    </div>
+
+    <script>
+        let allChannels = [];
+        let currentSchedule = null;
+        let currentChannelTitle = null;
+        let hasRendered = false;
+        let scrollPosition = 0;
+        window.currentArt = null;
+        window.fullScheduleData = null;
+
+        // === LOAD CHANNELS ===
+        async function loadChannels() {
+            try {
+                const res = await fetch('https://somestuffserver.koyeb.app/api/m3u8list');
+                const text = await res.text();
+                const lines = text.split('\n');
+
+                allChannels = [];
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].startsWith('#EXTINF')) {
+                        const title = lines[i].split(',').pop().trim();
+                        const logoMatch = lines[i].match(/tvg-logo="(.*?)"/);
+                        const logo = logoMatch ? logoMatch[1] : '';
+                        const stream = lines[i + 1]?.trim();
+                        if (stream) allChannels.push({ title, logo, stream });
+                    }
+                }
+
+                renderChannels();
+                fetchSchedule();
+            } catch (err) {
+                console.error("Failed to load channels:", err);
+                document.getElementById('channelGrid').innerHTML =
+                    '<div class="loading"><p>Failed to load channels. Please refresh the page.</p></div>';
+            }
+        }
+
+        // === RENDER CHANNEL CARDS (ONLY ONCE) ===
+        function renderChannels() {
+            if (hasRendered) return;
+            hasRendered = true;
+
+            const container = document.getElementById('channelGrid');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (allChannels.length === 0) {
+                container.innerHTML = '<div class="loading"><p>No channels available</p></div>';
+                return;
+            }
+
+            allChannels.forEach((channel, index) => {
+                const card = document.createElement('div');
+                card.className = 'channel-card animate-in';
+                card.setAttribute('data-channel', channel.title);
+                card.style.animationDelay = `${index * 0.05}s`;
+                card.innerHTML = `
+                    <div class="logo-container">
+                        <img src="${channel.logo || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%231e293b%22 width=%22100%22 height=%22100%22/%3E%3Ctext fill=%22%233b82f6%22 font-size=%2220%22 font-family=%22Arial%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ETV%3C/text%3E%3C/svg%3E'}" alt="${channel.title}" />
+                    </div>
+                    <div class="card-info">
+                        <div class="card-title">${channel.title}</div>
+                        <div class="schedule-info" id="sched-${channel.title.replace(/[^a-zA-Z0-9]/g, '_')}">Loading schedule...</div>
+                    </div>
+                `;
+                container.appendChild(card);
+
+                card.addEventListener('animationend', () => {
+                    card.classList.remove('animate-in');
+                    card.style.opacity = '1';
+                    card.style.transform = 'none';
+                });
+
+                card.addEventListener('click', () => openPlayer(channel.stream, channel.title, channel.logo));
+            });
+        }
+
+        // === FETCH SCHEDULE ===
+        async function fetchSchedule() {
+            try {
+                const res = await fetch(
+                    'https://somestuffserver.koyeb.app/api/scrape?url=https://tvpass.org/tv_schedules/channels_tv_schedule.json'
+                );
+                const data = await res.json();
+
+                allChannels.forEach(channel => {
+                    const match = data.find(d =>
+                        d.title && d.title.toLowerCase().includes(channel.title.toLowerCase())
+                    );
+                    if (match && match.next_programs) {
+                        const schedId = 'sched-' + channel.title.replace(/[^a-zA-Z0-9]/g, '_');
+                        const el = document.getElementById(schedId);
+                        if (!el) return;
+
+                        const now = new Date();
+                        const current = match.next_programs.find(p => {
+                            const start = new Date(p['data-listdatetime']);
+                            const end = new Date(start.getTime() + p['data-duration'] * 60000);
+                            return start <= now && now < end;
+                        });
+                        if (current) {
+                            const end = new Date(new Date(current['data-listdatetime']).getTime() + current['data-duration'] * 60000);
+                            el.innerHTML = `<strong>${current['data-showname']}</strong><br><small>Until ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>`;
+                        } else {
+                            el.innerHTML = 'Schedule unavailable';
+                        }
+                    } else {
+                        const schedId = 'sched-' + channel.title.replace(/[^a-zA-Z0-9]/g, '_');
+                        const el = document.getElementById(schedId);
+                        if (el) el.innerHTML = 'Schedule unavailable';
+                    }
+                });
+
+                window.fullScheduleData = data;
+            } catch (err) {
+                console.error("Failed to fetch schedule:", err);
+            }
+        }
+
+        // === OPEN PLAYER ===
+        function openPlayer(streamUrl, channelTitle, logoUrl) {
+            scrollPosition = window.scrollY;
+            currentChannelTitle = channelTitle;
+
+            document.querySelector('header').style.display = 'none';
+            document.getElementById('channelGrid').style.display = 'none';
+            document.getElementById('playerModal').style.display = 'flex';
+
+            const playerContainer = document.getElementById('player');
+            playerContainer.innerHTML = '';
+
+            if (window.currentArt && typeof window.currentArt.destroy === 'function') {
+                window.currentArt.destroy();
+                window.currentArt = null;
+            }
+
+            let hasErrored = false;
+            let playerClosed = false;
+
+            window.currentArt = new Artplayer({
+                container: '#player',
+                url: streamUrl,
+                isLive: true,
+                autoplay: true,
+                fullscreenWeb: true,
+                volume: 1.0,
+                poster: logoUrl,
+                type: 'm3u8',
+                plugins: [
+                    artplayerPluginHlsControl({
+                        defaultQuality: 'auto',
+                        defaultAudio: 'auto',
+                        quality: { control: true, setting: true, getName: l => l.height + 'P', auto: 'Auto' },
+                        audio: { control: true, setting: true, getName: t => t.name, auto: 'Auto' },
+                    }),
+                ],
+                customType: {
+                    m3u8: function (video, url, art) {
+                        if (Hls.isSupported()) {
+                            if (art.hls) art.hls.destroy();
+                            const hls = new Hls();
+                            
+                            hls.on(Hls.Events.ERROR, function (event, data) {
+                                if (data.fatal && !hasErrored && !playerClosed) {
+                                    hasErrored = true;
+                                    handleStreamError(channelTitle);
+                                }
+                            });
+
+                            hls.loadSource(url);
+                            hls.attachMedia(video);
+                            art.hls = hls;
+                            art.on('destroy', () => {
+                                playerClosed = true;
+                                hls.destroy();
+                            });
+
+                            const offset = 8;
+                            const seekToLive = () => {
+                                if (!isNaN(video.duration)) {
+                                    video.currentTime = Math.max(video.duration - offset, 0);
+                                    video.removeEventListener('play', seekToLive);
+                                }
+                            };
+                            video.addEventListener('play', seekToLive, { once: true });
+                        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                            video.src = url;
+                        }
+                        
+                        video.addEventListener('error', function(e) {
+                            if (!hasErrored && !playerClosed) {
+                                hasErrored = true;
+                                handleStreamError(channelTitle);
+                            }
+                        });
+                    },
+                },
+            });
+
+            window.currentArt.on('error', function() {
+                if (!hasErrored && !playerClosed) {
+                    hasErrored = true;
+                    handleStreamError(channelTitle);
+                }
+            });
+
+            document.getElementById('playerTitle').textContent = 'Now Playing - ' + channelTitle;
+
+            if (window.fullScheduleData) {
+                const match = window.fullScheduleData.find(d =>
+                    d.title && d.title.toLowerCase().includes(channelTitle.toLowerCase())
+                );
+                currentSchedule = match && match.next_programs ? match.next_programs : null;
+                renderScheduleSidebar(currentSchedule || []);
+            }
+
+            document.getElementById('scheduleSidebar').style.display = 'none';
+        }
+
+        // === HANDLE STREAM ERROR ===
+        function handleStreamError(channelTitle) {
+            if (window.currentArt && typeof window.currentArt.destroy === 'function') {
+                window.currentArt.destroy();
+                window.currentArt = null;
+            }
+
+            document.getElementById('playerModal').style.display = 'none';
+            document.querySelector('header').style.display = 'block';
+            document.getElementById('channelGrid').style.display = 'grid';
+            document.getElementById('player').innerHTML = '';
+            document.getElementById('scheduleSidebar').style.display = 'none';
+            
+            const card = document.querySelector(`.channel-card[data-channel="${channelTitle}"]`);
+            if (card) {
+                card.classList.add('hidden');
+            }
+            
+            allChannels = allChannels.filter(ch => ch.title !== channelTitle);
+            
+            showErrorPopup();
+            
+            window.scrollTo(0, scrollPosition);
+        }
+
+        // === SHOW ERROR POPUP ===
+        function showErrorPopup() {
+            const popup = document.getElementById('errorPopup');
+            popup.style.display = 'block';
+        }
+
+        // === CLOSE ERROR POPUP ===
+        function closeErrorPopup() {
+            const popup = document.getElementById('errorPopup');
+            popup.style.display = 'none';
+        }
+
+        // === CLOSE PLAYER ===
+        function closePlayer() {
+            document.getElementById('playerModal').style.display = 'none';
+            document.querySelector('header').style.display = 'block';
+            document.getElementById('channelGrid').style.display = 'grid';
+            document.getElementById('player').innerHTML = '';
+            document.getElementById('scheduleSidebar').style.display = 'none';
+
+            if (window.currentArt && typeof window.currentArt.destroy === 'function') {
+                window.currentArt.destroy();
+                window.currentArt = null;
+            }
+
+            window.scrollTo(0, scrollPosition);
+        }
+
+        // === SCHEDULE SIDEBAR ===
+        function toggleSchedule() {
+            const sidebar = document.getElementById('scheduleSidebar');
+            sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function closeSchedule() {
+            document.getElementById('scheduleSidebar').style.display = 'none';
+        }
+
+        function renderScheduleSidebar(schedule) {
+            const content = document.getElementById('scheduleContent');
+            if (!schedule || schedule.length === 0) {
+                content.innerHTML = '<h3>Upcoming Programs</h3><div class="schedule-item">No schedule available.</div>';
+                return;
+            }
+            const html = '<h3>Upcoming Programs</h3>' + schedule.map(p =>
+                `<div class="schedule-item">
+                    <strong>${p['data-showname']}</strong>
+                    <small>${new Date(p['data-listdatetime']).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – ${new Date(new Date(p['data-listdatetime']).getTime() + p['data-duration'] * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                    ${p['data-episodetitle'] ? '<br><small>' + p['data-episodetitle'] + '</small>' : ''}
+                </div>`
+            ).join('');
+            content.innerHTML = html;
+        }
+
+        // === SEARCH ===
+        document.getElementById('searchbar').addEventListener('input', e => {
+            const query = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('.channel-card');
+            cards.forEach(card => {
+                if (card.classList.contains('hidden')) return;
+                const title = card.querySelector('.card-title')?.textContent.toLowerCase() || '';
+                card.style.display = title.includes(query) ? '' : 'none';
+            });
+        });
+
+        // === INIT ===
+        document.getElementById('scheduleCloseBtn').addEventListener('click', closeSchedule);
+        loadChannels();
+    </script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MFMTWB2DBE"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-MFMTWB2DBE');
+    </script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gmes | Some Stuff</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <div class="page-header" id="gmeLibraryHeader">
+      <h2 class="page-title">Gme Library</h2>
+      <p class="page-subtitle">Discover and play amazing gmes</p>
+    </div>
+    <div class="search-section" id="gmeSearchSection">
+      <div class="search-container">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" class="search-input" placeholder="Search gmes..." id="gmeSearch">
+      </div>
+    </div>
+    <div class="gmes-grid" id="gmesGrid">
+      <div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading gmes...</p></div>
+    </div>
+    <div class="gme-iframe-container" id="gmeIframeContainer">
+      <div class="iframe-header">
+        <h3 id="gmeTitle">Gme</h3>
+        <div class="iframe-controls">
+          <button class="btn btn-sm" onclick="closeGme()"><i class="fas fa-arrow-left"></i> Back</button>
+          <button class="btn btn-sm" onclick="refreshGme()"><i class="fas fa-redo"></i> Refresh</button>
+          <button class="btn btn-sm" onclick="fullscreenGme()"><i class="fas fa-expand"></i> Fullscreen</button>
+          <button class="btn btn-sm" id="favoriteToggleBtn" onclick=""><i class="far fa-star"></i> Favorite</button>
+        </div>
+      </div>
+      <iframe id="gmeIframe" src="" frameborder="0"></iframe>
+    </div>
+  </div>
+  
+  <script>
+    function getFavorites() {
+      const favs = localStorage.getItem('favoriteGmes');
+      if (favs) {
+        try {
+          return JSON.parse(favs);
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    }
+
+    function toggleFavorite(url, title) {
+      let favorites = getFavorites();
+      const index = favorites.findIndex(g => g.url === url);
+      if (index === -1) {
+        favorites.push({url, title});
+      } else {
+        favorites.splice(index, 1);
+      }
+      localStorage.setItem('favoriteGmes', JSON.stringify(favorites));
+      updateFavoriteButton(url);
+      renderGmes(window.gmes || []);
+    }
+
+    function updateFavoriteButton(url) {
+      const favBtn = document.getElementById('favoriteToggleBtn');
+      if (!favBtn) return;
+      const favorites = getFavorites();
+      const isFav = favorites.some(g => g.url === url);
+      favBtn.innerHTML = isFav ? '<i class="fas fa-star"></i> Favorited' : '<i class="far fa-star"></i> Favorite';
+      favBtn.onclick = () => toggleFavorite(url, document.getElementById('gmeTitle').textContent);
+
+      // Also update favorite buttons in the gme grid to keep them synced
+      const gmeCards = document.querySelectorAll('.gme-card');
+      gmeCards.forEach(card => {
+        const titleEl = card.querySelector('.gme-info h4');
+        const favBtnGrid = card.querySelector('.favorite-btn');
+        if (titleEl && favBtnGrid) {
+          const gmeTitle = titleEl.textContent;
+          const gmeUrl = window.gmes.find(g => g.title === gmeTitle)?.url;
+          if (gmeUrl === url) {
+            if (isFav) {
+              favBtnGrid.innerHTML = '<i class="fas fa-star"></i> Favorited';
+            } else {
+              favBtnGrid.innerHTML = '<i class="far fa-star"></i> Favorite';
+            }
+          }
+        }
+      });
+    }
+
+    function playGme(url, title) {
+      const gmeIframeContainer = document.getElementById('gmeIframeContainer');
+      const gmeIframe = document.getElementById('gmeIframe');
+      const gmeTitle = document.getElementById('gmeTitle');
+      
+      if (gmeIframe && gmeTitle) {
+        gmeIframe.src = url;
+        gmeTitle.textContent = title;
+        if (gmeIframeContainer) {
+          gmeIframeContainer.style.display = 'block';
+        }
+        updateFavoriteButton(url);
+      }
+    }
+    
+    function closeGme() {
+      const gmeIframeContainer = document.getElementById('gmeIframeContainer');
+      const gmeIframe = document.getElementById('gmeIframe');
+      
+      if (gmeIframeContainer) {
+        gmeIframeContainer.style.display = 'none';
+      }
+      if (gmeIframe) {
+        gmeIframe.src = '';
+      }
+    }
+    
+    function refreshGme() {
+      const gmeIframe = document.getElementById('gmeIframe');
+      if (gmeIframe && gmeIframe.src) {
+        gmeIframe.src = gmeIframe.src;
+      }
+    }
+    
+    function fullscreenGme() {
+      const gmeIframe = document.getElementById('gmeIframe');
+      if (gmeIframe) {
+        if (gmeIframe.requestFullscreen) {
+          gmeIframe.requestFullscreen();
+        } else if (gmeIframe.webkitRequestFullscreen) {
+          gmeIframe.webkitRequestFullscreen();
+        } else if (gmeIframe.mozRequestFullScreen) {
+          gmeIframe.mozRequestFullScreen();
+        }
+      }
+    }
+
+    function renderGmes(gmes) {
+      window.gmes = gmes; // store globally for re-render after toggleFavorite
+      const favorites = getFavorites();
+      const favoritesUrls = favorites.map(g => g.url);
+
+      // Sort gmes: favorites first
+      gmes.sort((a, b) => {
+        const aFav = favoritesUrls.includes(a.url);
+        const bFav = favoritesUrls.includes(b.url);
+        if (aFav && !bFav) return -1;
+        if (!aFav && bFav) return 1;
+        return 0;
+      });
+
+      const gmesGrid = document.getElementById('gmesGrid');
+      if (!gmesGrid) return;
+      gmesGrid.innerHTML = '';
+
+      gmes.forEach(gme => {
+        const isFav = favoritesUrls.includes(gme.url);
+        const gmeCard = document.createElement('div');
+        gmeCard.className = 'gme-card';
+
+        const thumbDiv = document.createElement('div');
+        thumbDiv.className = 'gme-thumb';
+        const img = document.createElement('img');
+        img.src = gme.thumbnail;
+        img.alt = gme.title;
+        thumbDiv.appendChild(img);
+        thumbDiv.addEventListener('click', () => playGme(gme.url, gme.title));
+
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'gme-info';
+        const titleEl = document.createElement('h4');
+        titleEl.textContent = gme.title;
+        const favBtn = document.createElement('button');
+        favBtn.className = 'btn btn-sm favorite-btn';
+        favBtn.innerHTML = `<i class="${isFav ? 'fas' : 'far'} fa-star"></i> ${isFav ? 'Favorited' : 'Favorite'}`;
+        favBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleFavorite(gme.url, gme.title);
+        });
+
+        infoDiv.appendChild(titleEl);
+        infoDiv.appendChild(favBtn);
+
+        gmeCard.appendChild(thumbDiv);
+        gmeCard.appendChild(infoDiv);
+
+        gmesGrid.appendChild(gmeCard);
+      });
+    }
+
+    // Image caching for gme thumbnails
+    document.addEventListener("DOMContentLoaded", () => {
+      const cacheImage = (img, src) => {
+        const cached = localStorage.getItem("gme-imgcache-" + src);
+        if (cached) {
+          img.src = cached;
+        } else {
+          fetch(src).then(r => r.blob()).then(blob => {
+            const url = URL.createObjectURL(blob);
+            localStorage.setItem("gme-imgcache-" + src, url);
+            img.src = url;
+          }).catch(() => {});
+        }
+      };
+
+      const observer = new MutationObserver(() => {
+        document.querySelectorAll(".gme-card img").forEach(img => {
+          const src = img.getAttribute("src");
+          if (src && !img.dataset.cached) {
+            img.dataset.cached = "true";
+            cacheImage(img, src);
+          }
+        });
+      });
+      observer.observe(document.getElementById("gmesGrid"), {childList: true, subtree: true});
+    });
+  </script>
+  
+  <script src="js/gmes.js"></script>
+</body>
+</html>
